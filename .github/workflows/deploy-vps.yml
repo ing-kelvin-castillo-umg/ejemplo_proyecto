@@ -1,0 +1,88 @@
+name: Despliegue Continuo a VPS
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  deploy:
+    name: Desplegar en VPS con Docker Compose
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validar Configuración de Secrets de VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_USER" ] || [ -z "$VPS_SSH_KEY" ]; then
+            echo "::warning title=Secrets Faltantes::Los secrets VPS_HOST, VPS_USER o VPS_SSH_KEY no están configurados."
+            echo "Configúralos en GitHub -> Settings -> Secrets and variables -> Actions para activar el despliegue automático."
+            exit 0
+          fi
+
+      - name: Ejecutar Despliegue en VPS vía SSH
+        if: "${{ secrets.VPS_HOST != '' && secrets.VPS_USER != '' && secrets.VPS_SSH_KEY != '' }}"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+
+            # 1. Definir directorio del proyecto en el VPS (ajustar si tu ruta es diferente)
+            PROJECT_DIR="${HOME}/ejemplo_proyecto"
+            
+            if [ ! -d "$PROJECT_DIR" ]; then
+              echo "Directorio no encontrado en $PROJECT_DIR. Clonando repositorio..."
+              git clone -b develop https://github.com/ing-kelvin-castillo-umg/ejemplo_proyecto.git "$PROJECT_DIR"
+            fi
+
+            cd "$PROJECT_DIR"
+
+            # 2. Obtener los últimos cambios de develop
+            echo "=== Actualizando repositorio local en el VPS ==="
+            git fetch origin develop
+            
+            # Guardamos los archivos modificados en este push antes de actualizar
+            CHANGED_FILES=$(git diff --name-only HEAD origin/develop || true)
+            echo "Archivos modificados detectados:"
+            echo "$CHANGED_FILES"
+
+            git reset --hard origin/develop
+
+            # 3. Reconstrucción selectiva con Docker Compose
+            BACKEND_CHANGED=$(echo "$CHANGED_FILES" | grep -q "app_ejemplo_backend/" && echo "true" || echo "false")
+            FRONTEND_CHANGED=$(echo "$CHANGED_FILES" | grep -q "app_ejemplo/" && echo "true" || echo "false")
+            COMPOSE_CHANGED=$(echo "$CHANGED_FILES" | grep -q "docker-compose.yml" && echo "true" || echo "false")
+
+            echo "=== Estado de cambios ==="
+            echo "Backend modificado: $BACKEND_CHANGED"
+            echo "Frontend modificado: $FRONTEND_CHANGED"
+            echo "Docker Compose modificado: $COMPOSE_CHANGED"
+
+            if [ "$COMPOSE_CHANGED" = "true" ] || ([ "$BACKEND_CHANGED" = "true" ] && [ "$FRONTEND_CHANGED" = "true" ]); then
+              echo "Reconstruyendo todos los servicios..."
+              docker compose up -d --build
+            elif [ "$BACKEND_CHANGED" = "true" ]; then
+              echo "Reconstruyendo únicamente el contenedor Backend..."
+              docker compose up -d --no-deps --build backend
+            elif [ "$FRONTEND_CHANGED" = "true" ]; then
+              echo "Reconstruyendo únicamente el contenedor Frontend..."
+              docker compose up -d --no-deps --build frontend
+            else
+              echo "No hubo cambios en código fuente de contenedores. Levantando servicios..."
+              docker compose up -d
+            fi
+
+            # 4. Limpieza de imágenes huérfanas
+            echo "=== Limpiando imágenes docker en desuso ==="
+            docker image prune -f
+
+            # 5. Estado de los contenedores
+            echo "=== Estado final de los servicios ==="
+            docker compose ps
