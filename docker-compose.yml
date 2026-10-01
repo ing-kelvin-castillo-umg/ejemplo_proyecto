@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # 1. Base de datos PostgreSQL 16
+  db:
+    image: postgres:16-alpine
+    container_name: ferreteria_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ferreteria_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ferreteria_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ferreteria_net
+
+  # 2. Backend Spring Boot 3 + Java 21 + Liquibase + JWT
+  backend:
+    build:
+      context: ./app_ejemplo_backend
+      dockerfile: Dockerfile
+    container_name: ferreteria_backend
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/ferreteria_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgrespassword
+      JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+      JWT_EXPIRATION: 86400000
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ferreteria_net
+
+  # 3. Frontend Next.js 14
+  frontend:
+    build:
+      context: ./app_ejemplo
+      dockerfile: Dockerfile
+    container_name: ferreteria_frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - ferreteria_net
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  ferreteria_net:
+    driver: bridge

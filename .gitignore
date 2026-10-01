@@ -1,0 +1,81 @@
+# ==============================================================================
+# Monorepo .gitignore
+# Frontend (Next.js), Backend (Spring Boot / Maven), Mobile (Expo / React Native)
+# ==============================================================================
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+.project
+.classpath
+.settings/
+.springBeans
+.sts4-launcher
+.apt_generated
+
+# Environment Variables & Secrets
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Node.js (Frontend & Mobile)
+node_modules/
+.pnp/
+.pnp.js
+coverage/
+
+# Next.js (app_ejemplo)
+.next/
+out/
+build/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# Mobile Expo / React Native (app_ejemplo_movil)
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Java & Maven (app_ejemplo_backend)
+target/
+*.class
+*.jar
+*.war
+*.ear
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Docker
+.dockerignore

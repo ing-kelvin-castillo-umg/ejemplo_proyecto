@@ -1,0 +1,18 @@
+[
+  {
+    "id": "usr_01",
+    "email": "admin@empresa.com",
+    "password": "admin123",
+    "fullName": "Carlos Administración",
+    "roleCode": "ADMIN",
+    "isActive": true
+  },
+  {
+    "id": "usr_02",
+    "email": "user@empresa.com",
+    "password": "user123",
+    "fullName": "Laura Consulta",
+    "roleCode": "LIMITED",
+    "isActive": true
+  }
+]
